@@ -22,7 +22,7 @@
         index (rand-int 16)]
     (get hex-characters index)))
 
-(defn- create-hex-private-spend-key []
+(defn create-hex-private-spend-key []
   (loop [i 0
          result ""]
     (if (>= i 64)
