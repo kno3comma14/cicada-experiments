@@ -1,7 +1,8 @@
 (ns cicada-experiments.core
   (:require [clojure.math.numeric-tower :as math]
             [bites.core :as bc]
-            [clojure.java.shell :as shell]))
+            [buddy.core.codecs :as codecs])
+  (:import org.bouncycastle.jcajce.provider.digest.SHA3$DigestSHA3))
 
 (defn bytes->int
   [^bytes bytes & {:keys [little-endian]
@@ -32,10 +33,10 @@
              (str result (generate-random-hex-term))))))
 
 (defn execute-keccak256 [hex-input]
-  (let [command-to-run (str "echo -n " hex-input " | keccak-256sum -x -l")
-        raw-output (shell/sh "bash" "-c" command-to-run)
-        result (subs (:out raw-output) 0 64)]
-    result))
+  (let [sha3-digest (SHA3$DigestSHA3. 256)
+        _ (.update sha3-digest (codecs/hex->bytes hex-input))
+        pre-result (.digest sha3-digest)]
+    (codecs/bytes->hex pre-result)))
 
 (defn sc-reduce32 [s]
   (let [n (bytes->int (to-byte-array s))
