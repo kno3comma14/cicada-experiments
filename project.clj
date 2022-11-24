@@ -5,7 +5,7 @@
             :url "https://www.eclipse.org/legal/epl-2.0/"}
   :dependencies [[org.clojure/clojure "1.10.3"]
                  [org.clojure/math.numeric-tower "0.0.5"]
-                 [org.bouncycastle/bcprov-jdk15on "1.49"]
+                 [org.bouncycastle/bcprov-jdk15on "1.69"]
                  [bites "0.2.3"]
                  [buddy/buddy-core "1.10.413"]]
   :target-path "target/%s"
