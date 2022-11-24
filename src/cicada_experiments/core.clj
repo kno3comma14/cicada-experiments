@@ -33,7 +33,6 @@
 
 (defn execute-keccak256 [hex-input]
   (let [command-to-run (str "echo -n " hex-input " | keccak-256sum -x -l")
-        _ (prn command-to-run)
         raw-output (shell/sh "bash" "-c" command-to-run)
         result (subs (:out raw-output) 0 64)]
     result))
