@@ -50,4 +50,6 @@
     (sc-reduce32 hex-private-spend-key))
 
 (defn generate-private-view-key [private-spend-key]
-  (execute-keccak256 private-spend-key))
+  (let [prepared-spend-key (execute-keccak256 private-spend-key)
+        private-view-key (sc-reduce32 prepared-spend-key)]
+    private-view-key))
