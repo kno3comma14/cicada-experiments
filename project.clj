@@ -5,7 +5,9 @@
             :url "https://www.eclipse.org/legal/epl-2.0/"}
   :dependencies [[org.clojure/clojure "1.10.3"]
                  [org.clojure/math.numeric-tower "0.0.5"]
-                 [bites "0.2.3"]]
+                 [org.bouncycastle/bcprov-jdk15on "1.70"]
+                 [bites "0.2.3"]
+                 [commons-codec/commons-codec "1.15"]]
   :target-path "target/%s"
   :profiles {:uberjar {:aot :all
                        :jvm-opts ["-Dclojure.compiler.direct-linking=true"]}})
