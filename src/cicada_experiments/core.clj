@@ -46,6 +46,8 @@
         result (.toString (bytes->int pre-result) 16)]
     (complement-solution result)))
 
-(defn generate-private-spend-key []
-  (let [hex-private-spend-key (create-hex-private-spend-key)]
-    (sc-reduce32 hex-private-spend-key)))
+(defn generate-private-spend-key [hex-private-spend-key]
+    (sc-reduce32 hex-private-spend-key))
+
+(defn generate-private-view-key [private-spend-key]
+  (execute-keccak256 private-spend-key))
