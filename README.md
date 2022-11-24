@@ -6,6 +6,7 @@ Project to create some crypto useful functions.
 
 - Clojure 1.10.3 or superior
 - lein
+- sha3sum installed in the shell(There are versions for macos - homebrew, and versions for arch. Have to research the others)
 
 ## Usage
 

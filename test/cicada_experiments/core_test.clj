@@ -12,3 +12,17 @@
           second-actual-result (core/sc-reduce32 second-hex-input)]
       (is (and (= first-expected-result first-actual-result)
                (= second-expected-result second-actual-result))))))
+
+(deftest execute-keccak256-test
+  (testing "execute-keccak256 functionality working fine"
+    (let [input "0ccdf1e0217221deb8d807c1ecdf9c0c00beffbc339cdfa5c203c1a022d9cf01"
+          expected-result "6454a14f55aeca8ade0b5a3eeb240b149f6a572b397c8bec4c2cd6d58098156c"
+          actual-result (core/execute-keccak256 input)]
+      (is (= expected-result actual-result)))))
+
+(deftest generate-private-view-key-test
+  (testing "generate-private-view-key functionality working fine"
+    (let [input "0ccdf1e0217221deb8d807c1ecdf9c0c00beffbc339cdfa5c203c1a022d9cf01"
+          expected-result "d65cde21b75b5c7ad85e8c6cb349d1969e6a572b397c8bec4c2cd6d58098150c"
+          actual-result (core/generate-private-view-key input)]
+      (is (= expected-result actual-result)))))
