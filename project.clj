@@ -7,8 +7,7 @@
                  [org.clojure/math.numeric-tower "0.0.5"]
                  [org.bouncycastle/bcprov-jdk15on "1.49"]
                  [bites "0.2.3"]
-                 [buddy/buddy-core "1.10.413"]
-                 [commons-codec/commons-codec "1.15"]]
+                 [buddy/buddy-core "1.10.413"]]
   :target-path "target/%s"
   :profiles {:uberjar {:aot :all
                        :jvm-opts ["-Dclojure.compiler.direct-linking=true"]}})
