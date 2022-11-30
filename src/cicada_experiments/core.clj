@@ -6,6 +6,9 @@
 
 (def t (atom 0))
 (def Q (atom []))
+(def x (atom 0))
+
+(def q (biginteger (- (math/expt 2 255) 19)))
 
 (defn bytes->int
   [^bytes bytes & {:keys [little-endian]
@@ -58,18 +61,18 @@
     private-view-key))
 
 (defn get-bit
-  [data, position]
-  (let [byte-position (/ position 8)
+  [data position]
+  (let [byte-position (quot position 8)
         bit-position (mod position 8)
-        byte-value (get data byte-position)
+        byte-value (nth data byte-position)
         pivote (- 8 (+ bit-position 1))]
-    (bit-and (bit-shift-right byte-value pivote) 0x0001)))
+    (and (bit-shift-right byte-value pivote) 0x0001)))
 
 (defn decode-byte-array [input]
   (let [b 256]
-    (reduce +
-            (for [i (range 0 b)]
-              (* (math/expt 2 i) (get-bit input i))))))
+    (biginteger (reduce +
+                        (for [i (range 0 b)]
+                          (* (math/expt 2 i) (get-bit input i)))))))
 
 (defn exp-mod
   [b e m]
@@ -77,25 +80,39 @@
     1
     (do
       (reset! t (mod (math/expt (exp-mod b (quot e 2) m) 2) m))
-      (if (not= (bit-and e 1) 0)
-        (reset! t (mod (* @t b) m))
-        @t)))) ;; WTB A better implementation here XD
+      (when (not= (and e 1) 0)
+        (reset! t (mod (* @t b) m)))
+      @t)))
 
 (defn inv
   [x]
-  (let [q (biginteger (- (math/expt 2 255) 19))]
-    (exp-mod x (- q 2) q)))
+  (exp-mod x (- q 2) q))
+
+(def d (* -121665 (inv 121666)))
+(def I (exp-mod 2 (quot (- q 1) 4) q))
+
+(defn x-recovery
+  [y]
+  (let [xx (* (- (math/expt y 2) 1) (inv (+ (* d y y) 1)))]
+    (reset! x (exp-mod xx (quot (+ q 3) 8) q))
+    (when (not= (mod (- (math/expt @x 2) xx) q) 0)
+      (reset! x (mod (* @x I) q)))
+    (when (not= (mod @x 2) 0)
+      (reset! x (- q @x)))
+    @x))
+
+(def By (biginteger (* 4 (inv 5))))
+(def Bx (biginteger (x-recovery By)))
+(def B [(biginteger (mod Bx q)) (biginteger (mod By q))])
 
 (defn edwards
   [P Q]
-  (let [q (biginteger (- (math/expt 2 255) 19))
-        d (* -121665 (inv 121666))
-        x1 (get P 0)
-        y1 (get P 1)
-        x2 (get Q 0)
-        y2 (get Q 1)
+  (let [x1 (nth P 0)
+        y1 (nth P 1)
+        x2 (nth Q 0)
+        y2 (nth Q 1)
         x3 (* (+ (* x1 y2) (* x2 y1)) (inv (+ 1 (* d x1 x2 y1 y2))))
-        y3 (* (+ (* x1 y2) (* x2 y1)) (inv (- 1 (* d x1 x2 y1 y2))))]
+        y3 (* (+ (* y1 y2) (* x1 x2)) (inv (- 1 (* d x1 x2 y1 y2))))]
     [(mod x3 q) (mod y3 q)]))
 
 (defn scalar-multiplication
@@ -105,26 +122,31 @@
     (do
       (reset! Q (scalar-multiplication P (quot e 2)))
       (reset! Q (edwards @Q @Q))
-      (if (not= (bit-and e 1) 0)
-        (reset! Q (edwards @Q @P))
-        @Q))))
+      (when (not= (and e 1) 0)
+        (reset! Q (edwards @Q P)))
+      @Q)))
 
 (defn encode-point
   [P]
-  (let [x (get P 0)
-        y (get P 1)
+  (let [x (nth P 0)
+        y (biginteger (nth P 1))
         semi-bits (for [i (range 0 255)]
-                    (bit-shift-right y i))
-        bits (conj semi-bits (bit-and x 1))
-        upper-quot 32
-        displaced-bits (for [i (range 0 32)]
-                         (for [j (range 0 8)]
-                           (bit-shift-left (get bits (+ (i * 8) j)) j)))
-        added-displaced-bits (reduce + displaced-bits)
-        pre-result (bc/to-bytes added-displaced-bits)]
-    (.toString (bytes->int pre-result) 16)))
-
-
+                    (.shiftRight y i))
+        bits (apply list (concat semi-bits (list (and x 1))))
+        placed-bytes (for [i (range 0 32)]
+                       (biginteger (reduce + (for [j (range 0 8)]
+                                               (.shiftLeft (biginteger (nth bits (+ (* i 8) j))) j)))))
+        pre-result (byte-array placed-bytes)]
+    (codecs/bytes->hex pre-result)))
 
 (defn ->public-key [private-key]
-  (let [private-key-byte-array (codecs/hex->bytes private-key)]))
+  (let [private-key-byte-array (codecs/hex->bytes private-key)
+        a (decode-byte-array private-key-byte-array)
+        A (scalar-multiplication B a)]
+    (encode-point A)))
+
+
+
+
+
+
