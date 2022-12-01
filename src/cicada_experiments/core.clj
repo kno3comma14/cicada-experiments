@@ -4,6 +4,9 @@
             [buddy.core.codecs :as codecs])
   (:import org.bouncycastle.jcajce.provider.digest.SHA3$DigestSHA3))
 
+(def q (biginteger (- (math/expt 2 255) 19)))
+(def l (biginteger (+ (math/expt 2 252) 27742317777372353535851937790883648493)))
+
 (defn bytes->int
   [^bytes bytes & {:keys [little-endian]
                    :or {little-endian true}}]
@@ -40,7 +43,6 @@
 
 (defn sc-reduce32 [s]
   (let [n (bytes->int (to-byte-array s))
-        l (biginteger (+ (math/expt 2 252) 27742317777372353535851937790883648493))
         reduced-input (biginteger (.mod n l))
         pre-result (bc/to-bytes reduced-input)
         result (.toString (bytes->int pre-result) 16)]
@@ -53,3 +55,88 @@
   (let [prepared-spend-key (execute-keccak256 private-spend-key)
         private-view-key (sc-reduce32 prepared-spend-key)]
     private-view-key))
+
+(defn get-bit
+  [data position]
+  (let [byte-position (quot position 8)
+        bit-position (mod position 8)
+        byte-value (nth data byte-position)
+        pivote (- 8 (+ bit-position 1))]
+    (and (bit-shift-right byte-value pivote) 0x0001)))
+
+(defn exp-mod
+  [b e m]
+  (if (= e 0)
+    (biginteger 1)
+    (let [t (atom (.mod  (.pow (exp-mod (biginteger b) (.divide (biginteger e) (biginteger 2)) m) 2) m))]
+      (when (not= (.and (biginteger e) (biginteger 1)) 0)
+        (reset! t (.mod (.multiply @t (biginteger b)) m)))
+      @t)))
+
+(defn inv
+  [x]
+  (exp-mod x (.subtract q (biginteger 2)) q))
+
+(def d (.multiply (biginteger -121665) (inv (biginteger 121666))))
+(def I (exp-mod (biginteger 2) (.divide (.subtract q (biginteger 1)) (biginteger 4)) q))
+
+(defn x-recovery
+  [y]
+  (let [xx (.multiply (.subtract (.pow y 2) (biginteger 1))
+                      (inv (.add (reduce (fn [x y] (.multiply x y)) [d y y]) (biginteger 1))))
+        x (atom (exp-mod xx (.divide (.add q (biginteger 3)) (biginteger 8)) q))]
+    (when (not= (.mod (.subtract (.pow @x 2) xx) q) 0)
+      (reset! x (.mod (.multiply @x I) q)))
+    (when (not= (.mod @x (biginteger 2)) 0)
+      (reset! x (.subtract q @x)))
+    @x))
+
+(def By (.multiply (biginteger 4) (inv (biginteger 5))))
+(def Bx (biginteger (x-recovery By)))
+(def B [(.mod Bx q) (.mod By q)])
+
+(defn edwards
+  [P Q]
+  (let [x1 (nth P 0)
+        y1 (nth P 1)
+        x2 (nth Q 0)
+        y2 (nth Q 1)
+        x3 (.multiply
+            (.add (.multiply x1 y2) (.multiply x2 y1))
+            (inv (.add (biginteger 1) (reduce (fn [x y] (.multiply x y)) [d x1 x2 y1 y2]))))
+        y3 (.multiply
+            (.add (.multiply y1 y2) (.multiply x1 x2))
+            (inv (.subtract (biginteger 1) (reduce (fn [x y] (.multiply x y)) [d x1 x2 y1 y2]))))]
+    [(.mod x3 q) (.mod y3 q)]))
+
+(defn scalar-multiplication
+  [P e]
+  (if (= e 0)
+    [(biginteger 0) (biginteger 1)]
+    (let [Q (atom (scalar-multiplication P (.divide e (biginteger 2))))]
+      (reset! Q (edwards @Q @Q))
+      (when (not= (.and e (biginteger 1)) 0)
+        (reset! Q (edwards @Q P)))
+      @Q)))
+
+(defn encode-point
+  [P]
+  (let [k (biginteger (nth P 0))
+        l (biginteger (nth P 1))
+        semi-bits (for [i (range 0 255)]
+                    (.and (.shiftRight l (biginteger i)) (biginteger 1)))
+        bits (concat semi-bits (list (.and k (biginteger 1)))) ;; 0 - 1
+        placed-bytes (for [i (range 0 32)] ;; 0 - 255
+                       (biginteger
+                        (reduce (fn [x1 y1] (.add x1 y1))
+                                (for [j (range 0 8)]
+                                  (.shiftLeft (biginteger (nth bits (+ (* i 8) j))) j)))))
+        pre-result (byte-array placed-bytes)]
+    (codecs/bytes->hex pre-result)))
+
+(defn ->public-key [private-key]
+  (let [private-key-byte-array (codecs/hex->bytes private-key)
+        a (biginteger (bytes->int private-key-byte-array))
+        A (scalar-multiplication B a)]
+    (encode-point A)))
+
