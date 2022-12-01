@@ -1,6 +1,9 @@
 (ns cicada-experiments.core-test
-  (:require [clojure.test :refer :all]
-            [cicada-experiments.core :as core]))
+  (:require
+    [buddy.core.codecs :as codecs]
+    [cicada-experiments.core :as core]
+    [clojure.test :refer :all]))
+
 
 (deftest sc-reduce32-test
   (testing "sc_reduce32 functionality is working fine."
@@ -13,12 +16,23 @@
       (is (and (= first-expected-result first-actual-result)
                (= second-expected-result second-actual-result))))))
 
+
 (deftest execute-keccak256-test
   (testing "execute-keccak256 functionality working fine"
     (let [input "0ccdf1e0217221deb8d807c1ecdf9c0c00beffbc339cdfa5c203c1a022d9cf01"
           expected-result "6454a14f55aeca8ade0b5a3eeb240b149f6a572b397c8bec4c2cd6d58098156c"
           actual-result (core/execute-keccak256 input)]
       (is (= expected-result actual-result)))))
+
+
+;; https://csrc.nist.gov/csrc/media/projects/cryptographic-standards-and-guidelines/documents/examples/sha3-256_msg0.pdf
+(deftest execute-keccak256-sha3-256_msg0-test
+  (testing "execute-keccak256 functionality working fine for sha3-256_msg0"
+    (let [input (codecs/bytes->hex (.getBytes (String. "")))
+          expected-result "a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a"
+          actual-result (core/execute-keccak256 input)]
+      (is (= expected-result actual-result)))))
+
 
 (deftest generate-private-view-key-test
   (testing "generate-private-view-key functionality working fine"
