@@ -5,6 +5,7 @@
   (:import org.bouncycastle.jcajce.provider.digest.SHA3$DigestSHA3))
 
 (def q (biginteger (- (math/expt 2 255) 19)))
+(def l (biginteger (+ (math/expt 2 252) 27742317777372353535851937790883648493)))
 
 (defn bytes->int
   [^bytes bytes & {:keys [little-endian]
@@ -42,7 +43,6 @@
 
 (defn sc-reduce32 [s]
   (let [n (bytes->int (to-byte-array s))
-        l (biginteger (+ (math/expt 2 252) 27742317777372353535851937790883648493))
         reduced-input (biginteger (.mod n l))
         pre-result (bc/to-bytes reduced-input)
         result (.toString (bytes->int pre-result) 16)]
@@ -82,7 +82,8 @@
 
 (defn x-recovery
   [y]
-  (let [xx (.multiply (.subtract (.pow y 2) (biginteger 1)) (inv (.add (reduce (fn [x y] (.multiply x y)) [d y y]) (biginteger 1))))
+  (let [xx (.multiply (.subtract (.pow y 2) (biginteger 1))
+                      (inv (.add (reduce (fn [x y] (.multiply x y)) [d y y]) (biginteger 1))))
         x (atom (exp-mod xx (.divide (.add q (biginteger 3)) (biginteger 8)) q))]
     (when (not= (.mod (.subtract (.pow @x 2) xx) q) 0)
       (reset! x (.mod (.multiply @x I) q)))
@@ -100,8 +101,12 @@
         y1 (biginteger  (nth P 1))
         x2 (biginteger  (nth Q 0))
         y2 (biginteger  (nth Q 1))
-        x3 (biginteger (.multiply (.add (.multiply x1 y2) (.multiply x2 y1)) (inv (.add (biginteger 1) (reduce (fn [x y] (.multiply x y)) [d x1 x2 y1 y2])))))
-        y3 (biginteger (.multiply (.add (.multiply y1 y2) (.multiply x1 x2)) (inv (.subtract (biginteger 1) (reduce (fn [x y] (.multiply x y)) [d x1 x2 y1 y2])))))]
+        x3 (biginteger (.multiply
+                        (.add (.multiply x1 y2) (.multiply x2 y1))
+                        (inv (.add (biginteger 1) (reduce (fn [x y] (.multiply x y)) [d x1 x2 y1 y2])))))
+        y3 (biginteger (.multiply
+                        (.add (.multiply y1 y2) (.multiply x1 x2))
+                        (inv (.subtract (biginteger 1) (reduce (fn [x y] (.multiply x y)) [d x1 x2 y1 y2])))))]
     [(.mod x3 q) (.mod y3 q)]))
 
 (defn scalar-multiplication
@@ -120,10 +125,12 @@
         l (biginteger (nth P 1))
         semi-bits (for [i (range 0 255)]
                     (.and (.shiftRight l (biginteger i)) (biginteger 1)))
-        bits (concat semi-bits (list (.and k (biginteger 1))))
-        placed-bytes (for [i (range 0 32)]
-                       (biginteger (reduce (fn [x1 y1] (.add x1 y1)) (for [j (range 0 8)]
-                                                                   (.shiftLeft (biginteger (nth bits (+ (* i 8) j))) j)))))
+        bits (concat semi-bits (list (.and k (biginteger 1)))) ;; 0 - 1
+        placed-bytes (for [i (range 0 32)] ;; 0 - 255
+                       (biginteger
+                        (reduce (fn [x1 y1] (.add x1 y1))
+                                (for [j (range 0 8)]
+                                  (.shiftLeft (biginteger (nth bits (+ (* i 8) j))) j)))))
         pre-result (byte-array placed-bytes)]
     (codecs/bytes->hex pre-result)))
 
