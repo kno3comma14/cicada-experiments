@@ -97,16 +97,16 @@
 
 (defn edwards
   [P Q]
-  (let [x1 (biginteger (nth P 0))
-        y1 (biginteger  (nth P 1))
-        x2 (biginteger  (nth Q 0))
-        y2 (biginteger  (nth Q 1))
-        x3 (biginteger (.multiply
-                        (.add (.multiply x1 y2) (.multiply x2 y1))
-                        (inv (.add (biginteger 1) (reduce (fn [x y] (.multiply x y)) [d x1 x2 y1 y2])))))
-        y3 (biginteger (.multiply
-                        (.add (.multiply y1 y2) (.multiply x1 x2))
-                        (inv (.subtract (biginteger 1) (reduce (fn [x y] (.multiply x y)) [d x1 x2 y1 y2])))))]
+  (let [x1 (nth P 0)
+        y1 (nth P 1)
+        x2 (nth Q 0)
+        y2 (nth Q 1)
+        x3 (.multiply
+            (.add (.multiply x1 y2) (.multiply x2 y1))
+            (inv (.add (biginteger 1) (reduce (fn [x y] (.multiply x y)) [d x1 x2 y1 y2]))))
+        y3 (.multiply
+            (.add (.multiply y1 y2) (.multiply x1 x2))
+            (inv (.subtract (biginteger 1) (reduce (fn [x y] (.multiply x y)) [d x1 x2 y1 y2]))))]
     [(.mod x3 q) (.mod y3 q)]))
 
 (defn scalar-multiplication
