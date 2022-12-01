@@ -12,7 +12,7 @@ Project to create some crypto useful functions.
 ### Running the tests
 
 Run 
-```Ruby 
+```Bash 
 lein test
 ```
 
