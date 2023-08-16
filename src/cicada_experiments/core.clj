@@ -66,12 +66,7 @@
 
 (defn exp-mod
   [b e m]
-  (if (= e 0)
-    (biginteger 1)
-    (let [t (atom (.mod  (.pow (exp-mod (biginteger b) (.divide (biginteger e) (biginteger 2)) m) 2) m))]
-      (when (not= (.and (biginteger e) (biginteger 1)) 0)
-        (reset! t (.mod (.multiply @t (biginteger b)) m)))
-      @t)))
+  (.modPow b e m))
 
 (defn inv
   [x]
@@ -111,13 +106,14 @@
 
 (defn scalar-multiplication
   [P e]
-  (if (= e 0)
-    [(biginteger 0) (biginteger 1)]
-    (let [Q (atom (scalar-multiplication P (.divide e (biginteger 2))))]
-      (reset! Q (edwards @Q @Q))
-      (when (not= (.and e (biginteger 1)) 0)
-        (reset! Q (edwards @Q P)))
-      @Q)))
+  (cond 
+    (= e 1) P
+    (= e 0) [(biginteger 0) (biginteger 1)]
+    :else (let [Q (atom (scalar-multiplication P (.divide e (biginteger 2))))]
+            (reset! Q (edwards @Q @Q))
+            (when (not= (.mod e (biginteger 2)) 0)
+              (reset! Q (edwards @Q P)))
+            @Q)))
 
 (defn encode-point
   [P]
@@ -135,8 +131,7 @@
     (codecs/bytes->hex pre-result)))
 
 (defn ->public-key [private-key]
-  (let [private-key-byte-array (codecs/hex->bytes private-key)
-        a (biginteger (bytes->int private-key-byte-array))
+  (let [private-key-byte-array (codecs/hex->bytes private-key) 
+        a (biginteger (bytes->int private-key-byte-array)) 
         A (scalar-multiplication B a)]
     (encode-point A)))
-

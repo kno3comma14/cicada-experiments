@@ -1,6 +1,8 @@
 /target
 /classes
 /checkouts
+/.clj-kondo
+/.lsp
 profiles.clj
 pom.xml
 pom.xml.asc
@@ -12,3 +14,5 @@ pom.xml.asc
 .hgignore
 .hg/
 *.~undo-tree~
+.calva/
+src/cicada_experiments/hashes/
